@@ -1,0 +1,10 @@
+# Local / editor
+.DS_Store
+.netlify/
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log

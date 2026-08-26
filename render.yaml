@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: pds-to-excel-tool
+    runtime: static
+    plan: starter
+    buildCommand: "true"
+    staticPublishPath: .

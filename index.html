@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process Data Sheet → Excel Summary Tool</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-title">PDS → Excel Summary Tool</span>
+    <span class="brand-sub">공정 데이터시트 요약 · Excel / Word → PDF · PDF 합치기 · 스캔 PDF OCR (오프라인, 브라우저 내 처리)</span>
+  </div>
+</header>
+
+<div class="disclaimer">
+  ⚠ 이 도구는 PDF의 <b>텍스트 레이어</b>를 읽어 라벨(예: "Design Pressure")을 패턴으로 찾아 값을 추출하는 <b>오프라인 방식</b>입니다.
+  벤더/양식마다 레이아웃이 달라 일부 항목은 못 찾거나 잘못 매칭될 수 있습니다 — 반드시 "검토 &amp; 수정" 탭에서 확인 후 내보내세요.
+  스캔본(이미지) PDF는 텍스트가 없어 자동 인식이 안 됩니다 (아래 파일목록에 표시됨).
+  모든 처리는 브라우저 안에서만 이루어지며 파일이 외부로 전송되지 않습니다.
+</div>
+
+<nav class="tabs" id="tabNav">
+  <button class="tab-btn active" data-tab="upload">1. 업로드 &amp; 추출</button>
+  <button class="tab-btn" data-tab="review">2. 검토 &amp; 수정</button>
+  <button class="tab-btn" data-tab="export">3. 내보내기 설정</button>
+  <button class="tab-btn" data-tab="dictionary">4. 필드 사전</button>
+  <span class="tabs-divider" aria-hidden="true"></span>
+  <button class="tab-btn" data-tab="excel-pdf">Excel → PDF</button>
+  <button class="tab-btn" data-tab="word-pdf">Word → PDF</button>
+  <button class="tab-btn" data-tab="pdf-ocr">PDF OCR</button>
+  <button class="tab-btn" data-tab="pdf-merge">PDF 합치기</button>
+</nav>
+
+<main id="app">
+
+  <!-- ============ TAB 1: UPLOAD & EXTRACT ============ -->
+  <section class="tab-panel active" id="tab-upload">
+    <h2>PDF 업로드 &amp; 추출</h2>
+    <div id="dropZone" class="drop-zone">
+      <p><b>PDF 파일을 여기로 드래그</b>하거나 클릭해서 선택하세요 (여러 개 선택 가능)</p>
+      <input type="file" id="fileInput" accept="application/pdf" multiple hidden>
+      <button class="btn" id="btnBrowse">파일 선택</button>
+    </div>
+    <div id="fileList" class="item-list"></div>
+  </section>
+
+  <!-- ============ TAB 2: REVIEW & EDIT ============ -->
+  <section class="tab-panel" id="tab-review">
+    <h2>검토 &amp; 수정</h2>
+    <p class="hint">자동 추출된 값을 확인하고 수정하세요. "기타 항목"은 사전에 없는 라벨이 감지된 경우이며, 체크한 항목만 내보내기에 포함됩니다.</p>
+    <div id="reviewList"></div>
+  </section>
+
+  <!-- ============ TAB 3: EXPORT SETTINGS ============ -->
+  <section class="tab-panel" id="tab-export">
+    <h2>내보내기 설정</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>시트 구성 방식</h3>
+        <label class="radio"><input type="radio" name="exportMode" value="consolidated" checked>
+          <span><b>통합 (Consolidated)</b> — 모든 장비를 표(행=장비, 열=항목) 하나로 비교<br><span class="hint">여러 장비를 한눈에 비교할 때 적합</span></span>
+        </label>
+        <label class="radio"><input type="radio" name="exportMode" value="separate">
+          <span><b>분리 (Separate Sheets)</b> — 장비마다 개별 시트에 원본 데이터시트 형태(라벨-값)로 정리<br><span class="hint">개별 장비를 깊게 보거나 원본 문서처럼 보관할 때 적합</span></span>
+        </label>
+      </div>
+      <div class="card">
+        <h3>포함 항목 (통합 모드 열 선택)</h3>
+        <div id="fieldSelectList" class="checkbox-grid"></div>
+      </div>
+    </div>
+    <button class="btn btn-lg" id="btnExport">📊 Excel로 내보내기</button>
+    <div id="exportStatus" class="hint"></div>
+  </section>
+
+  <!-- ============ TAB 4: FIELD DICTIONARY ============ -->
+  <section class="tab-panel" id="tab-dictionary">
+    <h2>필드 사전 (라벨 동의어 관리)</h2>
+    <p class="hint">회사/벤더마다 쓰는 표현이 다르면 여기에 동의어를 추가하세요. 브라우저에 저장되어 다음에 열어도 유지됩니다.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>동의어 추가</h3>
+        <label>대상 필드 <select id="dict-field"></select></label>
+        <label>새 동의어(라벨) 텍스트 <input type="text" id="dict-synonym" placeholder="예: 설계압력, DESIGN PRESS."></label>
+        <button class="btn" id="btnAddSynonym">추가</button>
+      </div>
+      <div class="card">
+        <h3>현재 커스텀 동의어</h3>
+        <div id="customSynonymList"></div>
+      </div>
+    </div>
+    <h3 style="margin-top:20px;">전체 표준 필드 목록</h3>
+    <div id="dictionaryTable"></div>
+  </section>
+
+  <!-- ============ TAB: Excel → PDF ============ -->
+  <section class="tab-panel" id="tab-excel-pdf">
+    <h2>Excel → PDF 변환</h2>
+    <p class="hint">xlsx / xlsm / xls / csv 파일을 브라우저에서 PDF로 변환합니다. 여러 개를 한 번에 넣을 수 있고, 통합 문서의 시트는 하나의 PDF에 이어집니다. 파일은 외부로 전송되지 않습니다.</p>
+    <div class="card" style="margin-bottom:16px;">
+      <h3>용지 설정</h3>
+      <div class="grid2">
+        <div>
+          <label class="radio"><input type="radio" name="excelPaper" value="a4" checked> A4</label>
+          <label class="radio"><input type="radio" name="excelPaper" value="letter"> Letter</label>
+        </div>
+        <div>
+          <label class="radio"><input type="radio" name="excelOrient" value="landscape" checked> 가로 (스프레드시트에 적합)</label>
+          <label class="radio"><input type="radio" name="excelOrient" value="portrait"> 세로</label>
+        </div>
+      </div>
+    </div>
+    <div id="excelDropZone" class="drop-zone">
+      <p><b>Excel 파일을 여기로 드래그</b>하거나 클릭해서 선택하세요 (여러 개 선택 가능)</p>
+      <input type="file" id="excelFileInput" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple hidden>
+      <button class="btn" id="btnExcelBrowse">파일 선택</button>
+    </div>
+    <div id="excelFileList" class="item-list"></div>
+    <div class="convert-actions">
+      <button class="btn btn-lg" id="btnExcelToPdf">📄 PDF로 변환 &amp; 다운로드</button>
+      <button class="btn btn-ghost" id="btnExcelClear">목록 비우기</button>
+    </div>
+    <div id="excelPdfStatus" class="hint"></div>
+  </section>
+
+  <!-- ============ TAB: Word → PDF ============ -->
+  <section class="tab-panel" id="tab-word-pdf">
+    <h2>Word → PDF 변환</h2>
+    <p class="hint">.docx / .docm 파일을 브라우저에서 PDF로 변환합니다. 여러 개를 한 번에 넣을 수 있습니다. 구버전 .doc은 지원하지 않으니 Word에서 .docx로 저장해 주세요. 파일은 외부로 전송되지 않습니다.</p>
+    <div class="card" style="margin-bottom:16px;">
+      <h3>용지 설정</h3>
+      <div class="grid2">
+        <div>
+          <label class="radio"><input type="radio" name="wordPaper" value="a4" checked> A4</label>
+          <label class="radio"><input type="radio" name="wordPaper" value="letter"> Letter</label>
+        </div>
+        <div>
+          <label class="radio"><input type="radio" name="wordOrient" value="portrait" checked> 세로</label>
+          <label class="radio"><input type="radio" name="wordOrient" value="landscape"> 가로</label>
+        </div>
+      </div>
+    </div>
+    <div id="wordDropZone" class="drop-zone">
+      <p><b>Word 파일을 여기로 드래그</b>하거나 클릭해서 선택하세요 (여러 개 선택 가능)</p>
+      <input type="file" id="wordFileInput" accept=".docx,.docm,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden>
+      <button class="btn" id="btnWordBrowse">파일 선택</button>
+    </div>
+    <div id="wordFileList" class="item-list"></div>
+    <div class="convert-actions">
+      <button class="btn btn-lg" id="btnWordToPdf">📄 PDF로 변환 &amp; 다운로드</button>
+      <button class="btn btn-ghost" id="btnWordClear">목록 비우기</button>
+    </div>
+    <div id="wordPdfStatus" class="hint"></div>
+  </section>
+
+  <!-- ============ TAB: PDF OCR ============ -->
+  <section class="tab-panel" id="tab-pdf-ocr">
+    <h2>PDF OCR (검색 가능한 PDF)</h2>
+    <p class="hint">스캔본처럼 글자를 선택할 수 없는 PDF를, 페이지를 이미지로 읽은 뒤 문자를 인식해 <b>검색·복사가 되는 PDF</b>로 만듭니다. 여러 개를 한 번에 넣을 수 있습니다. 최초 실행 시 언어 데이터(수 MB)를 다운로드하며, 페이지 수에 따라 수 분 걸릴 수 있습니다. 인식률은 원본 화질·기울기·표 복잡도에 따라 달라집니다. 파일은 외부로 전송되지 않습니다.</p>
+    <div class="card" style="margin-bottom:16px;">
+      <h3>인식 언어</h3>
+      <label class="radio"><input type="radio" name="ocrLang" value="kor+eng" checked>
+        <span><b>한국어 + 영어</b> — 도면·사양서에 적합 (언어 데이터가 더 큼)</span>
+      </label>
+      <label class="radio"><input type="radio" name="ocrLang" value="eng">
+        <span><b>영어만</b> — 더 빠르고 용량이 작음</span>
+      </label>
+    </div>
+    <div id="ocrDropZone" class="drop-zone">
+      <p><b>PDF 파일을 여기로 드래그</b>하거나 클릭해서 선택하세요 (여러 개 선택 가능)</p>
+      <input type="file" id="ocrFileInput" accept="application/pdf,.pdf" multiple hidden>
+      <button class="btn" id="btnOcrBrowse">파일 선택</button>
+    </div>
+    <div id="ocrFileList" class="item-list"></div>
+    <div class="convert-actions">
+      <button class="btn btn-lg" id="btnPdfOcr">🔍 OCR PDF로 변환 &amp; 다운로드</button>
+      <button class="btn btn-ghost" id="btnOcrClear">목록 비우기</button>
+    </div>
+    <div id="ocrPdfStatus" class="hint"></div>
+  </section>
+
+  <!-- ============ TAB: PDF Merge ============ -->
+  <section class="tab-panel" id="tab-pdf-merge">
+    <h2>PDF 합치기</h2>
+    <p class="hint">여러 PDF를 <b>목록에 올라온 순서</b>대로 하나의 PDF로 합칩니다. 위/아래 버튼으로 순서를 바꿀 수 있습니다. 파일은 외부로 전송되지 않습니다.</p>
+    <div id="mergeDropZone" class="drop-zone">
+      <p><b>PDF 파일을 여기로 드래그</b>하거나 클릭해서 선택하세요 (여러 개 선택 가능)</p>
+      <input type="file" id="mergeFileInput" accept="application/pdf,.pdf" multiple hidden>
+      <button class="btn" id="btnMergeBrowse">파일 선택</button>
+    </div>
+    <div id="mergeFileList" class="item-list"></div>
+    <div class="convert-actions">
+      <button class="btn btn-lg" id="btnPdfMerge">📎 하나로 합쳐 다운로드</button>
+      <button class="btn btn-ghost" id="btnMergeClear">목록 비우기</button>
+    </div>
+    <div id="mergePdfStatus" class="hint"></div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  PDS → Excel Summary Tool · 오프라인 클라이언트 처리 · pdf.js + ExcelJS + Tesseract.js
+</footer>
+
+<script type="module">
+  import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.1.200/pdf.worker.min.mjs";
+  window.pdfjsLib = pdfjsLib;
+  window.__pdfjsReady = true;
+  document.dispatchEvent(new Event("pdfjs-ready"));
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="js/field-dictionary.js"></script>
+<script src="js/classify.js"></script>
+<script src="js/pdf-extract.js"></script>
+<script src="js/parse-fields.js"></script>
+<script src="js/excel-export.js"></script>
+<script src="js/convert-common.js"></script>
+<script src="js/excel-to-pdf.js"></script>
+<script src="js/word-to-pdf.js"></script>
+<script src="js/pdf-ocr.js"></script>
+<script src="js/pdf-merge.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

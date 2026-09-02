@@ -126,41 +126,30 @@ table.calc-table input[type="text"] { margin-top: 0; padding: 5px 8px; font-size
   background: #fff;
   color: var(--text);
   pointer-events: none;
+  overflow: visible;
 }
-.excel-pdf-page {
+.excel-pdf-sheet-wrap {
   display: inline-block;
   background: #fff;
-  padding: 12px 16px;
-  font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", Arial, sans-serif;
+  position: relative;
 }
-.excel-pdf-sheet-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--navy);
-  margin-bottom: 10px;
-}
-.excel-pdf-table {
+.excel-pdf-sheet {
   border-collapse: collapse;
-  font-size: 11px;
-  width: max-content;
-  max-width: 1600px;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: #fff;
+  font-family: Calibri, "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
+  font-size: 11pt;
+  color: #000;
 }
-.excel-pdf-table th,
-.excel-pdf-table td {
-  border: 1px solid #c5ced8;
-  padding: 4px 8px;
-  vertical-align: top;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-width: 220px;
+.excel-pdf-sheet td {
+  margin: 0;
+  line-height: 1.15;
 }
-.excel-pdf-table th {
-  background: #10243e;
-  color: #fff;
-  font-weight: 700;
-  text-align: left;
+.excel-pdf-drawing {
+  position: absolute;
+  pointer-events: none;
 }
-.excel-pdf-table tr:nth-child(even) td { background: #f4f6f8; }
 
 .word-pdf-stage { background: #fff; }
 .word-pdf-page,
